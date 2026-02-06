@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <div class="header">
+    <span class="logo">Traceable<span class="ai">AI</span></span>
+    <div class="status-badge">FORENSIC MODE</div>
+  </div>
+
+  <div id="scan-container">
+    <div class="preview-box">
+      <img id="image-preview" src="" alt="Scan Target" />
+      <div class="scan-line"></div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <label>Authenticity</label>
+        <div class="value" id="trust-score">--%</div>
+      </div>
+      <div class="stat-card">
+        <label>AI Signature</label>
+        <div class="value" id="ai-signature">Analyzing...</div>
+      </div>
+    </div>
+
+    <div class="analysis-box">
+      <h3>🔍 Detailed Observations</h3>
+      <ul id="observations">
+        <li>Awaiting media selection...</li>
+      </ul>
+    </div>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>
