@@ -1,9 +1,14 @@
 {
   "manifest_version": 3,
   "name": "TraceableAI: Deepfake Auditor",
-  "version": "0.1",
-  "description": "Verify media authenticity in real-time.",
-  "permissions": ["storage", "tabs"],
+  "version": "0.2",
+  "permissions": ["sidePanel", "storage", "tabs"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
   "content_scripts": [
     {
       "matches": ["https://twitter.com/*", "https://x.com/*"],
@@ -11,9 +16,5 @@
       "css": ["styles.css"]
     }
   ],
-  "action": {
-    "default_popup": "popup.html"
-  },
   "host_permissions": ["<all_urls>"]
-
 }
