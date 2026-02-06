@@ -13,10 +13,17 @@ const addVerifyButtons = () => {
     btn.onclick = (e) => {
       e.stopPropagation();
       e.preventDefault();
-      alert('Day 2 Feature: Scanning this image for AI signatures...');
-    };
+  
+      // Find the actual image URL
+      const imgElement = imgContainer.querySelector('img');
+      const imgUrl = imgElement ? imgElement.src : '';
 
-    imgContainer.appendChild(btn);
+      // "Whisper" to the background script to open the sidebar
+      chrome.runtime.sendMessage({
+        action: "open_sidebar",
+        imgUrl: imgUrl
+      });
+    };
   });
 };
 
