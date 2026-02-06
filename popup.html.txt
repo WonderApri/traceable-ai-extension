@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { width: 200px; font-family: sans-serif; padding: 10px; }
+    h2 { font-size: 16px; color: #1d9bf0; }
+  </style>
+</head>
+<body>
+  <h2>TraceableAI</h2>
+  <p>Status: <span style="color:green">Active</span></p>
+  <small>Scan images on X.com to detect AI manipulation.</small>
+</body>
+</html>
