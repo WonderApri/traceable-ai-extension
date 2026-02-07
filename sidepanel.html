@@ -1,37 +1,66 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TraceableAI Scanner</title>
   <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
-  <div class="header">
-    <span class="logo">Traceable<span class="ai">AI</span></span>
-    <div class="status-badge">FORENSIC MODE</div>
-  </div>
-
-  <div id="scan-container">
-    <div class="preview-box">
-      <img id="image-preview" src="" alt="Scan Target" />
-      <div class="scan-line"></div>
-    </div>
-
-    <div class="stats-grid">
-      <div class="stat-card">
-        <label>Authenticity</label>
-        <div class="value" id="trust-score">--%</div>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <span class="logo-icon">🔍</span>
+        <h1>TraceableAI</h1>
       </div>
-      <div class="stat-card">
-        <label>AI Signature</label>
-        <div class="value" id="ai-signature">Analyzing...</div>
-      </div>
-    </div>
+      <div class="tagline">Deepfake Detection System</div>
+    </header>
 
-    <div class="analysis-box">
-      <h3>🔍 Detailed Observations</h3>
-      <ul id="observations">
-        <li>Awaiting media selection...</li>
-      </ul>
-    </div>
+    <!-- Image Preview Section -->
+    <section class="preview-section">
+      <div class="section-title">Image Analysis</div>
+      <div class="image-preview-container">
+        <div id="imagePreview" class="image-preview">
+          <div class="placeholder">
+            <div class="placeholder-icon">📷</div>
+            <p>No image loaded</p>
+          </div>
+        </div>
+        <div id="scanningOverlay" class="scanning-overlay hidden">
+          <div class="scanning-laser"></div>
+          <div class="scanning-text">ANALYZING...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Scan Controls -->
+    <section class="controls-section">
+      <button id="scanButton" class="scan-button" disabled>
+        <span class="button-icon">⚡</span>
+        <span>Initialize Scan</span>
+      </button>
+    </section>
+
+    <!-- Results Section -->
+    <section class="results-section">
+      <div class="section-title">Detection Results</div>
+      <div id="resultsContainer" class="results-container">
+        <div class="results-placeholder">
+          <div class="placeholder-icon">📊</div>
+          <p>Awaiting scan results...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Status Bar -->
+    <footer class="status-bar">
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        <span id="statusText">Ready</span>
+      </div>
+      <div class="version">v1.0.0</div>
+    </footer>
   </div>
 
   <script src="sidepanel.js"></script>
