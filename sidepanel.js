@@ -1,12 +1,12 @@
-// Sidepanel logic for TraceableAI with Hugging Face API Integration
+// Sidepanel logic for TraceableAI with Proxy Server
 
 let currentImageUrl = null;
 
 // ============================================
-// HUGGING FACE API CONFIGURATION
+// PROXY SERVER CONFIGURATION
 // ============================================
-const HUGGINGFACE_API_KEY = "YOUR_HUGGING_FACE_TOKEN_HERE"; // <-- PASTE YOUR TOKEN HERE
-const MODEL_ENDPOINT = "https://api-inference.huggingface.co/models/Ateeqq/ai-vs-human-image-detector";
+// Replace YOUR-USERNAME with your actual Hugging Face username
+const PROXY_ENDPOINT = "https://Aparajita300-traceable-ai-proxy.hf.space/verify";
 
 // DOM Elements
 const imagePreview = document.getElementById('imagePreview');
@@ -100,14 +100,13 @@ async function fetchImageAsBlob(imageUrl) {
 }
 
 /**
- * Send image to Hugging Face API for AI detection
+ * Send image to Proxy Server for AI detection
  */
-async function analyzeImageWithHuggingFace(imageBlob) {
+async function analyzeImageWithProxy(imageBlob) {
   try {
-    const response = await fetch(MODEL_ENDPOINT, {
+    const response = await fetch(PROXY_ENDPOINT, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${HUGGINGFACE_API_KEY}`,
         'Content-Type': 'application/octet-stream'
       },
       body: imageBlob
@@ -119,27 +118,27 @@ async function analyzeImageWithHuggingFace(imageBlob) {
       // Handle specific error cases
       if (response.status === 503) {
         throw new Error('Model is currently loading. Please try again in 20-30 seconds.');
-      } else if (response.status === 401) {
-        throw new Error('Invalid API key. Please check your Hugging Face token.');
+      } else if (response.status === 500) {
+        throw new Error('Proxy server error. Please try again later.');
       } else if (response.status === 429) {
         throw new Error('Rate limit exceeded. Please wait a moment and try again.');
       } else {
-        throw new Error(errorData.error || `API error: ${response.status}`);
+        throw new Error(errorData.error || `Proxy error: ${response.status}`);
       }
     }
     
     const data = await response.json();
     return data;
   } catch (error) {
-    console.error('Hugging Face API error:', error);
+    console.error('Proxy server error:', error);
     throw error;
   }
 }
 
 /**
- * Parse Hugging Face response and format results
+ * Parse Proxy Server response and format results
  */
-function parseHuggingFaceResults(apiResponse) {
+function parseProxyResults(apiResponse) {
   // The API returns an array of predictions like:
   // [
   //   { "label": "artificial", "score": 0.8234 },
@@ -269,7 +268,7 @@ function displayResults(results) {
       <!-- API Info -->
       <div class="api-info">
         <div class="api-info-text">
-          <span class="api-badge">🤖 Powered by Hugging Face</span>
+          <span class="api-badge">🔒 Secured via Proxy</span>
           <span class="model-name">Model: Ateeqq/ai-vs-human-image-detector</span>
         </div>
       </div>
@@ -290,10 +289,11 @@ function displayError(errorMessage) {
         <div class="error-suggestions">
           <p><strong>Suggestions:</strong></p>
           <ul>
-            <li>Check your API key is correctly set</li>
+            <li>Check your internet connection</li>
             <li>Ensure the image is under 10MB</li>
             <li>Wait 20-30 seconds if the model is loading</li>
             <li>Try a different image</li>
+            <li>Verify the proxy server is running</li>
           </ul>
         </div>
       </div>
@@ -306,16 +306,10 @@ function displayError(errorMessage) {
 // ============================================
 
 /**
- * Perform real AI detection scan using Hugging Face API
+ * Perform real AI detection scan using Proxy Server
  */
 async function performScan() {
   if (!currentImageUrl) return;
-  
-  // Check if API key is set
-  if (HUGGINGFACE_API_KEY === "YOUR_HUGGING_FACE_TOKEN_HERE") {
-    displayError("Please set your Hugging Face API key in sidepanel.js");
-    return;
-  }
   
   // Disable scan button during scan
   scanButton.disabled = true;
@@ -332,13 +326,13 @@ async function performScan() {
     updateStatus('Converting image...');
     const imageBlob = await fetchImageAsBlob(currentImageUrl);
     
-    // Step 2: Send to Hugging Face API
+    // Step 2: Send to Proxy Server
     updateStatus('Analyzing with AI model...');
-    const apiResponse = await analyzeImageWithHuggingFace(imageBlob);
+    const apiResponse = await analyzeImageWithProxy(imageBlob);
     
     // Step 3: Parse results
     updateStatus('Processing results...');
-    const results = parseHuggingFaceResults(apiResponse);
+    const results = parseProxyResults(apiResponse);
     
     // Wait minimum 2 seconds for better UX (so users see the animation)
     await new Promise(resolve => setTimeout(resolve, 2000));
