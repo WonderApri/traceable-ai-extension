@@ -66,28 +66,30 @@ function injectScanButton(tweetElement) {
   button.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
+  
     const imageUrl = getImageUrlFromTweet(tweetElement);
-    
+  
     if (imageUrl) {
-      // Send message to background script to open sidebar
+      // 1. Update the button UI immediately
+      button.innerHTML = '⚡ Scanning...';
+      button.style.background = 'linear-gradient(135deg, #00ff88 0%, #00cc66 100%)';
+
+      // 2. Send the message with the CORRECT keys: 'action' and 'imgUrl'
       chrome.runtime.sendMessage({
-        type: 'open_sidebar',
-        imageUrl: imageUrl
-      }, (response) => {
-        if (response && response.success) {
-          console.log('Sidebar opened with image:', imageUrl);
-          button.innerHTML = '✓ Scanning...';
-          button.style.background = 'linear-gradient(135deg, #00ff88 0%, #00cc66 100%)';
-          
-          setTimeout(() => {
-            button.innerHTML = '🔍 Scan for Deepfake';
-            button.style.background = 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)';
-          }, 2000);
-        }
+        action: 'open_sidebar', // Changed from 'type' to 'action'
+        imgUrl: imageUrl       // Changed from 'imageUrl' to 'imgUrl'
       });
+
+      console.log('TraceableAI: Command sent to open sidebar for', imageUrl);
+
+      // 3. Reset button after 2 seconds
+      setTimeout(() => {
+        button.innerHTML = '🔍 Scan for Deepfake';
+        button.style.background = 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)';
+      }, 2000);
+
     } else {
-      alert('No image found in this tweet');
+      console.error('TraceableAI: No image found in this tweet container');
     }
   });
   
