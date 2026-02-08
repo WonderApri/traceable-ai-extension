@@ -1,6 +1,12 @@
-// Sidepanel logic for TraceableAI
+// Sidepanel logic for TraceableAI with Hugging Face API Integration
 
 let currentImageUrl = null;
+
+// ============================================
+// HUGGING FACE API CONFIGURATION
+// ============================================
+const HUGGINGFACE_API_KEY = "YOUR_HUGGING_FACE_TOKEN_HERE"; // <-- PASTE YOUR TOKEN HERE
+const MODEL_ENDPOINT = "https://api-inference.huggingface.co/models/Ateeqq/ai-vs-human-image-detector";
 
 // DOM Elements
 const imagePreview = document.getElementById('imagePreview');
@@ -61,70 +67,158 @@ function showPlaceholder() {
   `;
 }
 
-// Generate random trust score and metadata
-function generateResults() {
-  const trustScore = Math.floor(Math.random() * 100) + 1;
-  const confidence = Math.floor(Math.random() * 30) + 70; // 70-100%
+// ============================================
+// HUGGING FACE API INTEGRATION
+// ============================================
+
+/**
+ * Fetch image from URL and convert to Blob
+ */
+async function fetchImageAsBlob(imageUrl) {
+  try {
+    // Fetch the image
+    const response = await fetch(imageUrl);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+    }
+    
+    // Convert to blob
+    const blob = await response.blob();
+    
+    // Check file size (Hugging Face has limits, typically ~10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (blob.size > maxSize) {
+      throw new Error(`Image too large (${(blob.size / 1024 / 1024).toFixed(2)}MB). Maximum size is 10MB.`);
+    }
+    
+    return blob;
+  } catch (error) {
+    console.error('Error fetching image:', error);
+    throw error;
+  }
+}
+
+/**
+ * Send image to Hugging Face API for AI detection
+ */
+async function analyzeImageWithHuggingFace(imageBlob) {
+  try {
+    const response = await fetch(MODEL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${HUGGINGFACE_API_KEY}`,
+        'Content-Type': 'application/octet-stream'
+      },
+      body: imageBlob
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      
+      // Handle specific error cases
+      if (response.status === 503) {
+        throw new Error('Model is currently loading. Please try again in 20-30 seconds.');
+      } else if (response.status === 401) {
+        throw new Error('Invalid API key. Please check your Hugging Face token.');
+      } else if (response.status === 429) {
+        throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+      } else {
+        throw new Error(errorData.error || `API error: ${response.status}`);
+      }
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Hugging Face API error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Parse Hugging Face response and format results
+ */
+function parseHuggingFaceResults(apiResponse) {
+  // The API returns an array of predictions like:
+  // [
+  //   { "label": "artificial", "score": 0.8234 },
+  //   { "label": "human", "score": 0.1766 }
+  // ]
   
-  const manipulationTypes = [
-    'Face Swap Detection',
-    'Facial Reenactment',
-    'Audio-Visual Sync',
-    'Texture Analysis',
-    'Lighting Consistency',
-    'Edge Detection'
-  ];
+  if (!Array.isArray(apiResponse) || apiResponse.length === 0) {
+    throw new Error('Invalid API response format');
+  }
   
-  const artifacts = [
-    { name: 'Facial Asymmetry', detected: Math.random() > 0.5, severity: Math.random() > 0.7 ? 'High' : 'Low' },
-    { name: 'Lighting Inconsistencies', detected: Math.random() > 0.6, severity: Math.random() > 0.6 ? 'Medium' : 'Low' },
-    { name: 'Compression Artifacts', detected: Math.random() > 0.4, severity: Math.random() > 0.5 ? 'Medium' : 'Low' },
-    { name: 'Pixel Anomalies', detected: Math.random() > 0.7, severity: Math.random() > 0.8 ? 'High' : 'Medium' }
-  ];
+  // Sort by score to get the top prediction
+  const sortedResults = apiResponse.sort((a, b) => b.score - a.score);
+  const topPrediction = sortedResults[0];
   
-  const detectedArtifacts = artifacts.filter(a => a.detected);
-  const scanType = manipulationTypes[Math.floor(Math.random() * manipulationTypes.length)];
+  const label = topPrediction.label.toLowerCase();
+  const confidence = Math.round(topPrediction.score * 100);
+  
+  // Determine if it's AI-generated or human-made
+  const isArtificial = label === 'artificial' || label === 'ai' || label === 'fake';
+  
+  // Calculate trust score (inverse of artificial confidence)
+  // If artificial: low trust score
+  // If human: high trust score
+  const trustScore = isArtificial ? Math.max(5, 100 - confidence) : confidence;
   
   return {
-    trustScore,
-    confidence,
-    scanType,
-    artifacts: detectedArtifacts,
+    trustScore: trustScore,
+    confidence: confidence,
+    verdict: isArtificial ? 'LIKELY AI-GENERATED' : 'LIKELY AUTHENTIC',
+    verdictClass: isArtificial ? 'manipulated' : 'authentic',
+    rawLabel: topPrediction.label,
+    allPredictions: sortedResults,
     timestamp: new Date().toLocaleString()
   };
 }
 
-// Display results
+// ============================================
+// DISPLAY RESULTS
+// ============================================
+
+/**
+ * Display analysis results in the UI
+ */
 function displayResults(results) {
-  const { trustScore, confidence, scanType, artifacts, timestamp } = results;
+  const { trustScore, confidence, verdict, verdictClass, rawLabel, allPredictions, timestamp } = results;
   
-  // Determine verdict
-  let verdict, verdictClass, verdictIcon;
-  if (trustScore >= 70) {
-    verdict = 'AUTHENTIC';
-    verdictClass = 'authentic';
+  // Determine color based on verdict
+  let scoreColor, verdictIcon;
+  if (verdictClass === 'authentic') {
+    scoreColor = '#00ff88'; // Green
     verdictIcon = '✓';
-  } else if (trustScore >= 40) {
-    verdict = 'SUSPICIOUS';
-    verdictClass = 'suspicious';
-    verdictIcon = '⚠';
-  } else {
-    verdict = 'LIKELY MANIPULATED';
-    verdictClass = 'manipulated';
+  } else if (verdictClass === 'manipulated') {
+    scoreColor = '#ff4444'; // Red
     verdictIcon = '✗';
+  } else {
+    scoreColor = '#ffcc00'; // Yellow
+    verdictIcon = '⚠';
   }
   
-  // Build artifacts HTML
-  let artifactsHTML = '';
-  if (artifacts.length > 0) {
-    artifactsHTML = artifacts.map(artifact => `
-      <div class="artifact-item">
-        <span class="artifact-name">${artifact.name}</span>
-        <span class="artifact-severity severity-${artifact.severity.toLowerCase()}">${artifact.severity}</span>
-      </div>
-    `).join('');
-  } else {
-    artifactsHTML = '<div class="no-artifacts">No significant artifacts detected</div>';
+  // Build predictions HTML
+  let predictionsHTML = '';
+  if (allPredictions && allPredictions.length > 0) {
+    predictionsHTML = allPredictions.map(pred => {
+      const predScore = Math.round(pred.score * 100);
+      const barWidth = predScore;
+      const labelColor = pred.label.toLowerCase() === 'artificial' ? '#ff4444' : '#00ff88';
+      
+      return `
+        <div class="prediction-item">
+          <div class="prediction-header">
+            <span class="prediction-label" style="color: ${labelColor}">${pred.label.toUpperCase()}</span>
+            <span class="prediction-score">${predScore}%</span>
+          </div>
+          <div class="prediction-bar-container">
+            <div class="prediction-bar" style="width: ${barWidth}%; background: ${labelColor}"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
   }
   
   resultsContainer.innerHTML = `
@@ -134,10 +228,10 @@ function displayResults(results) {
         <svg class="trust-circle" viewBox="0 0 160 160">
           <circle class="trust-circle-bg" cx="80" cy="80" r="70" />
           <circle class="trust-circle-progress" cx="80" cy="80" r="70" 
-                  style="stroke-dashoffset: ${440 - (440 * trustScore) / 100}" />
+                  style="stroke: ${scoreColor}; stroke-dashoffset: ${440 - (440 * trustScore) / 100}; filter: drop-shadow(0 0 10px ${scoreColor})" />
         </svg>
         <div class="trust-score-text">
-          <div class="score-number">${trustScore}</div>
+          <div class="score-number" style="color: ${scoreColor}; text-shadow: 0 0 15px ${scoreColor}">${trustScore}</div>
           <div class="score-label">Trust Score</div>
         </div>
       </div>
@@ -155,8 +249,8 @@ function displayResults(results) {
           <div class="detail-value">${confidence}%</div>
         </div>
         <div class="detail-item">
-          <div class="detail-label">Scan Type</div>
-          <div class="detail-value">${scanType}</div>
+          <div class="detail-label">Detection Type</div>
+          <div class="detail-value">AI vs Human</div>
         </div>
         <div class="detail-item">
           <div class="detail-label">Timestamp</div>
@@ -164,47 +258,116 @@ function displayResults(results) {
         </div>
       </div>
       
-      <!-- Artifacts Detected -->
+      <!-- Predictions Breakdown -->
       <div class="artifacts-section">
-        <div class="artifacts-title">Detected Artifacts</div>
-        <div class="artifacts-list">
-          ${artifactsHTML}
+        <div class="artifacts-title">Model Predictions</div>
+        <div class="predictions-list">
+          ${predictionsHTML}
+        </div>
+      </div>
+      
+      <!-- API Info -->
+      <div class="api-info">
+        <div class="api-info-text">
+          <span class="api-badge">🤖 Powered by Hugging Face</span>
+          <span class="model-name">Model: Ateeqq/ai-vs-human-image-detector</span>
         </div>
       </div>
     </div>
   `;
 }
 
-// Perform scan animation and show results
-function performScan() {
+/**
+ * Display error message
+ */
+function displayError(errorMessage) {
+  resultsContainer.innerHTML = `
+    <div class="results-content">
+      <div class="error-container">
+        <div class="error-icon">⚠️</div>
+        <div class="error-title">Analysis Failed</div>
+        <div class="error-message">${errorMessage}</div>
+        <div class="error-suggestions">
+          <p><strong>Suggestions:</strong></p>
+          <ul>
+            <li>Check your API key is correctly set</li>
+            <li>Ensure the image is under 10MB</li>
+            <li>Wait 20-30 seconds if the model is loading</li>
+            <li>Try a different image</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================
+// MAIN SCAN FUNCTION
+// ============================================
+
+/**
+ * Perform real AI detection scan using Hugging Face API
+ */
+async function performScan() {
   if (!currentImageUrl) return;
+  
+  // Check if API key is set
+  if (HUGGINGFACE_API_KEY === "YOUR_HUGGING_FACE_TOKEN_HERE") {
+    displayError("Please set your Hugging Face API key in sidepanel.js");
+    return;
+  }
   
   // Disable scan button during scan
   scanButton.disabled = true;
-  scanButton.innerHTML = '<span class="button-icon">⏳</span><span>Scanning...</span>';
+  scanButton.innerHTML = '<span class="button-icon">⏳</span><span>Analyzing...</span>';
   
   // Update status
-  updateStatus('Analyzing image...');
+  updateStatus('Fetching image...');
   
   // Show scanning overlay
   scanningOverlay.classList.remove('hidden');
   
-  // Simulate 3-second scan
-  setTimeout(() => {
+  try {
+    // Step 1: Fetch image as blob
+    updateStatus('Converting image...');
+    const imageBlob = await fetchImageAsBlob(currentImageUrl);
+    
+    // Step 2: Send to Hugging Face API
+    updateStatus('Analyzing with AI model...');
+    const apiResponse = await analyzeImageWithHuggingFace(imageBlob);
+    
+    // Step 3: Parse results
+    updateStatus('Processing results...');
+    const results = parseHuggingFaceResults(apiResponse);
+    
+    // Wait minimum 2 seconds for better UX (so users see the animation)
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
     // Hide scanning overlay
     scanningOverlay.classList.add('hidden');
     
-    // Generate and display results
-    const results = generateResults();
+    // Display results
     displayResults(results);
-    
-    // Re-enable button
-    scanButton.disabled = false;
-    scanButton.innerHTML = '<span class="button-icon">⚡</span><span>Rescan Image</span>';
     
     // Update status
     updateStatus('Scan complete');
-  }, 3000);
+    
+  } catch (error) {
+    console.error('Scan error:', error);
+    
+    // Hide scanning overlay
+    scanningOverlay.classList.add('hidden');
+    
+    // Display error
+    displayError(error.message || 'An unexpected error occurred');
+    
+    // Update status
+    updateStatus('Scan failed');
+  } finally {
+    // Re-enable button
+    scanButton.disabled = false;
+    scanButton.innerHTML = '<span class="button-icon">⚡</span><span>Rescan Image</span>';
+  }
 }
 
 // Event Listeners
