@@ -1,128 +1,37 @@
-// Content script for TraceableAI - Injects buttons on X.com
+console.log("🚀 TraceableAI: Content Script Loaded!");
 
-console.log('TraceableAI content script loaded');
+function injectButton() {
+  const tweets = document.querySelectorAll('article[data-testid="tweet"]:not(.traceable-checked)');
+  
+  tweets.forEach(tweet => {
+    tweet.classList.add('traceable-checked');
+    const actionBar = tweet.querySelector('[role="group"]');
+    
+    if (actionBar) {
+      const btn = document.createElement('button');
+      btn.innerText = "🔍 Audit AI";
+      btn.style.cssText = "background: #1d9bf0; color: white; border: none; border-radius: 15px; padding: 5px 10px; margin-left: 10px; cursor: pointer; font-weight: bold;";
+      
+      btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const img = tweet.querySelector('img[src*="media"]');
+        const imgUrl = img ? img.src : null;
 
-// Function to extract image URL from tweet media
-function getImageUrlFromTweet(tweetElement) {
-  // Try to find image in the tweet
-  const imgElement = tweetElement.querySelector('img[src*="media"]');
-  if (imgElement) {
-    return imgElement.src;
-  }
-  
-  // Alternative: look for background images
-  const mediaContainer = tweetElement.querySelector('[data-testid="tweetPhoto"]');
-  if (mediaContainer) {
-    const img = mediaContainer.querySelector('img');
-    if (img) return img.src;
-  }
-  
-  return null;
-}
+        console.log("Checking image:", imgUrl);
 
-// Function to create and inject the "Scan Image" button
-function injectScanButton(tweetElement) {
-  // Check if button already exists
-  if (tweetElement.querySelector('.traceable-ai-button')) {
-    return;
-  }
-  
-  // Only add button if tweet has media
-  const hasMedia = tweetElement.querySelector('img[src*="media"]') || 
-                   tweetElement.querySelector('[data-testid="tweetPhoto"]');
-  
-  if (!hasMedia) return;
-  
-  // Create button
-  const button = document.createElement('button');
-  button.className = 'traceable-ai-button';
-  button.innerHTML = '🔍 Scan for Deepfake';
-  button.style.cssText = `
-    background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
-    color: #000;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 16px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    margin: 8px 0;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(0, 212, 255, 0.3);
-  `;
-  
-  // Hover effects
-  button.addEventListener('mouseenter', () => {
-    button.style.transform = 'scale(1.05)';
-    button.style.boxShadow = '0 4px 12px rgba(0, 212, 255, 0.5)';
-  });
-  
-  button.addEventListener('mouseleave', () => {
-    button.style.transform = 'scale(1)';
-    button.style.boxShadow = '0 2px 8px rgba(0, 212, 255, 0.3)';
-  });
-  
-  // Click handler
-  button.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-  
-    const imageUrl = getImageUrlFromTweet(tweetElement);
-  
-    if (imageUrl) {
-      // 1. Update the button UI immediately
-      button.innerHTML = '⚡ Scanning...';
-      button.style.background = 'linear-gradient(135deg, #00ff88 0%, #00cc66 100%)';
-
-      // 2. Send the message with the CORRECT keys: 'action' and 'imgUrl'
-      chrome.runtime.sendMessage({
-        action: 'open_sidebar', // Changed from 'type' to 'action'
-        imgUrl: imageUrl       // Changed from 'imageUrl' to 'imgUrl'
-      });
-
-      console.log('TraceableAI: Command sent to open sidebar for', imageUrl);
-
-      // 3. Reset button after 2 seconds
-      setTimeout(() => {
-        button.innerHTML = '🔍 Scan for Deepfake';
-        button.style.background = 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)';
-      }, 2000);
-
-    } else {
-      console.error('TraceableAI: No image found in this tweet container');
+        if (imgUrl) {
+          chrome.runtime.sendMessage({ action: "open_sidebar", imgUrl: imgUrl });
+        } else {
+          alert("No image found in this tweet!");
+        }
+      };
+      
+      actionBar.appendChild(btn);
     }
   });
-  
-  // Find the action bar in the tweet and insert button
-  const actionBar = tweetElement.querySelector('[role="group"]');
-  if (actionBar) {
-    const buttonContainer = document.createElement('div');
-    buttonContainer.style.cssText = 'display: flex; align-items: center; margin-left: 12px;';
-    buttonContainer.appendChild(button);
-    actionBar.appendChild(buttonContainer);
-  }
 }
 
-// Observer to detect new tweets being loaded
-const observer = new MutationObserver((mutations) => {
-  // Find all tweet articles
-  const tweets = document.querySelectorAll('article[data-testid="tweet"]');
-  
-  tweets.forEach(tweet => {
-    injectScanButton(tweet);
-  });
-});
-
-// Start observing the document
-observer.observe(document.body, {
-  childList: true,
-  subtree: true
-});
-
-// Initial injection for already loaded tweets
-setTimeout(() => {
-  const tweets = document.querySelectorAll('article[data-testid="tweet"]');
-  tweets.forEach(tweet => {
-    injectScanButton(tweet);
-  });
-}, 1000);
+// Run every 2 seconds to catch new tweets
+setInterval(injectButton, 2000);
